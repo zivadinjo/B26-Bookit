@@ -12,5 +12,5 @@ import org.junit.runner.RunWith;
         glue = "com/bookit/step_definitions/",
         dryRun = false
 )
-public class CukesRunner {
+public class Runner {
 }
