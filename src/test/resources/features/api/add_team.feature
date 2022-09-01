@@ -7,7 +7,7 @@ Feature: Add new team API and DB validation
     When Users sends POST request to "/api/teams/team" with following info:
       | campus-location | VA |
       | batch-number | 26 |
-      | team-name | Wooden Spoon0123176 |
+      | team-name | Wooden Spoon012317 |
     Then status code should be 201
     And Database should persist same team info
     And User deletes previously created team
