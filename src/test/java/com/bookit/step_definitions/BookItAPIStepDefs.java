@@ -1,8 +1,10 @@
 package com.bookit.step_definitions;
+
 import com.bookit.pages.LogInPage;
 import com.bookit.pages.MapPage;
 import com.bookit.pages.SelfPage;
 import com.bookit.utilities.*;
+import com.github.javafaker.Faker;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -48,31 +50,31 @@ public class BookItAPIStepDefs {
     @Given("User sends GET request to {string}")
     public void user_sends_GET_request_to(String endpoint) { ///api/users/me
         response = given().accept(ContentType.JSON)
-                .and().header("Authorization",  accessToken)
+                .and().header("Authorization", accessToken)
                 .when().get(baseUrl + endpoint);
         response.then().log().all();
     }
 
     @Then("status code should be {int}")
     public void status_code_should_be(int expStatusCode) {
-        assertEquals("Status code verification failed",expStatusCode, response.statusCode());
+        assertEquals("Status code verification failed", expStatusCode, response.statusCode());
         response.then().statusCode(expStatusCode);
     }
 
     @Then("content type is {string}")
     public void content_type_is(String expContentType) {
         response.then().contentType(expContentType);
-        assertEquals("Content type verification failed. expected = " + expContentType +" but actual = " + response.contentType()
-                ,expContentType, response.contentType());
+        assertEquals("Content type verification failed. expected = " + expContentType + " but actual = " + response.contentType()
+                , expContentType, response.contentType());
     }
 
     /**
-     {
-     "id": 11516,
-     "firstName": "Barbabas",
-     "lastName": "Lyst",
-     "role": "teacher"
-     }
+     * {
+     * "id": 11516,
+     * "firstName": "Barbabas",
+     * "lastName": "Lyst",
+     * "role": "teacher"
+     * }
      */
     @Then("role is {string}")
     public void role_is(String expRole) {
@@ -123,21 +125,28 @@ public class BookItAPIStepDefs {
     }
 
     /**
-     {
-     "entryiId": 14945,
-     "entryType": "Team",
-     "message": "team Wooden Spoon7987 has been added to the batch 26."
-     }
+     * {
+     * "entryiId": 14945,
+     * "entryType": "Team",
+     * "message": "team Wooden Spoon7987 has been added to the batch 26."
+     * }
      */
 
     @When("Users sends POST request to {string} with following info:")
-    public void users_sends_POST_request_to_with_following_info(String endpoint, Map<String, String> teamInfo) {
-        response =given().accept(ContentType.JSON)
-                .and().queryParams(teamInfo)
+    public void users_sends_POST_request_to_with_following_info(String endpoint, Map<String, String> dataMap) {
+//  TODO      Faker faker = new Faker();
+//        String randomEmail = faker.internet().emailAddress();
+//        if(dataMap.containsKey("email")){
+//            dataMap.replace("email",randomEmail);
+//            System.out.println("randomEmail = " + randomEmail);
+//        }
+        response = given().accept(ContentType.JSON)
+                .and().queryParams(dataMap)
                 .and().header("Authorization", accessToken)
                 .when().post(baseUrl + endpoint);
         response.prettyPrint();
-        newRecordMap = teamInfo;
+        //store into newRecordMap so that we can use for validation in next step
+        this.newRecordMap = dataMap;
     }
 
     @Then("Database should persist same team info")
@@ -150,7 +159,7 @@ public class BookItAPIStepDefs {
         System.out.println("sql = " + sql);
         System.out.println("dbNewTeamMap = " + dbNewTeamMap);
 
-        assertThat(dbNewTeamMap.get("id"), equalTo((long)newTeamID));
+        assertThat(dbNewTeamMap.get("id"), equalTo((long) newTeamID));
         assertThat(dbNewTeamMap.get("name"), equalTo(newRecordMap.get("team-name")));
         assertThat(dbNewTeamMap.get("batch_number").toString(), equalTo(newRecordMap.get("batch-number")));
     }
@@ -163,6 +172,47 @@ public class BookItAPIStepDefs {
                 .and().pathParam("id", teamId)
                 .when().delete(baseUrl + "/api/teams/{id}")
                 .then().log().all();
+    }
+
+    @Then("Database should contain same student info")
+    public void database_should_contain_same_student_info() {
+        int newStudentId = response.path("entryiId");
+        String sql = "select * from users where id =" + newStudentId;
+        Map<String, Object> dbStudentMap = DBUtils.getRowMap(sql);
+        System.out.println("dbStudentMap = " + dbStudentMap);
+
+        assertThat(newRecordMap.get("first-name"),equalTo(dbStudentMap.get("firstname")));
+        assertThat(newRecordMap.get("last-name"),equalTo(dbStudentMap.get("lastname")));
+        assertThat(newRecordMap.get("role"),equalTo(dbStudentMap.get("role")));
+        assertThat(newRecordMap.get("email"),equalTo(dbStudentMap.get("email")));
+
+
+    }
+
+    @Then("User should able to login bookit app on ui")
+    public void user_should_able_to_login_bookit_app_on_ui() {
+        Driver.getDriver().get(Environment.URL);
+        LogInPage logInPage = new LogInPage();
+        logInPage.login(newRecordMap.get("email"),newRecordMap.get("password"));
+        MapPage mapPage = new MapPage();
+        assertThat(mapPage.myLink.isDisplayed(),is(true));
+    }
+
+    /**
+     * {
+     * "entryiId": 15413,
+     * "entryType": "Student",
+     * "message": "user harold finch has been added to database."
+     * }
+     */
+    @Then("User deletes previously created student")
+    public void user_deletes_previously_created_student() {
+        int newStudentId = response.path("entryiId");
+        given().accept(ContentType.JSON)
+                .and().header("Authorization", accessToken)
+                .and().pathParam("id", newStudentId)
+                .when().delete(baseUrl + "/api/students/{id}")
+                .then().statusCode(204);
     }
 
 }
