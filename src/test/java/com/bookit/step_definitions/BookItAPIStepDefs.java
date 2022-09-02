@@ -212,7 +212,7 @@ public class BookItAPIStepDefs {
                 .and().header("Authorization", accessToken)
                 .and().pathParam("id", newStudentId)
                 .when().delete(baseUrl + "/api/students/{id}")
-                .then().statusCode(204);
+                .then().statusCode(204).log().all();
     }
 
 }
